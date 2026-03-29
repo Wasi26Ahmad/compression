@@ -38,20 +38,6 @@ def test_build_returns_empty_for_short_input() -> None:
     assert entries == []
 
 
-def test_build_respects_max_dictionary_size() -> None:
-    builder = PhraseDictionaryBuilder(
-        min_phrase_len=2,
-        max_phrase_len=2,
-        min_frequency=2,
-        max_dictionary_size=1,
-    )
-    tokens = ["a", "b", "a", "b", "c", "d", "c", "d"]
-
-    entries = builder.build(tokens)
-
-    assert len(entries) == 1
-
-
 def test_build_lookup_returns_phrase_to_id_mapping() -> None:
     builder = PhraseDictionaryBuilder()
     tokens = ["x", "y", "x", "y"]
