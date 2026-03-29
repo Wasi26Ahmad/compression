@@ -6,10 +6,9 @@ import json
 import lzma
 import zlib
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from src.compression.tokenizer import TextTokenizer
-
 
 CompressionMethod = Literal["none", "zlib", "lzma"]
 
@@ -32,16 +31,16 @@ class CompressionPackage:
     token_count: int
     compressed_payload_b64: str
     stats: CompressionStats
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CompressionPackage":
+    def from_dict(cls, data: dict[str, Any]) -> CompressionPackage:
         stats_data = data["stats"]
         stats = CompressionStats(**stats_data)
         return cls(
@@ -56,12 +55,11 @@ class CompressionPackage:
         )
 
     @classmethod
-    def from_json(cls, json_str: str) -> "CompressionPackage":
+    def from_json(cls, json_str: str) -> CompressionPackage:
         return cls.from_dict(json.loads(json_str))
 
 
 class TextCompressor:
-
     SUPPORTED_METHODS: tuple[CompressionMethod, ...] = ("none", "zlib", "lzma")
 
     def __init__(
@@ -87,7 +85,9 @@ class TextCompressor:
         self.lzma_preset = lzma_preset
         self.tokenizer = TextTokenizer()
 
-    def compress(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> CompressionPackage:
+    def compress(
+        self, text: str, metadata: dict[str, Any] | None = None
+    ) -> CompressionPackage:
         if not isinstance(text, str):
             raise TypeError("text must be a string")
 
@@ -116,7 +116,9 @@ class TextCompressor:
         )
         return package
 
-    def compress_to_json(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def compress_to_json(
+        self, text: str, metadata: dict[str, Any] | None = None
+    ) -> str:
         return self.compress(text=text, metadata=metadata).to_json()
 
     def _compress_bytes(self, data: bytes) -> bytes:
@@ -159,5 +161,5 @@ class TextCompressor:
             original_token_count=original_token_count,
         )
 
-    def available_methods(self) -> List[str]:
+    def available_methods(self) -> list[str]:
         return list(self.SUPPORTED_METHODS)

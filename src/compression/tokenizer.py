@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Sequence
-
 
 # Lossless tokenization pattern.
 # Order matters:
@@ -21,7 +20,7 @@ _TOKEN_PATTERN = re.compile(
 
 @dataclass(frozen=True)
 class TokenizationResult:
-    tokens: List[str]
+    tokens: list[str]
     token_count: int
     original_length: int
 
@@ -53,7 +52,7 @@ class TextTokenizer:
         )
 
     def detokenize(self, tokens: Sequence[str]) -> str:
-        if not isinstance(tokens, (list, tuple)):
+        if not isinstance(tokens, list | tuple):
             raise TypeError("tokens must be a list or tuple of strings")
 
         if not all(isinstance(token, str) for token in tokens):
@@ -65,7 +64,7 @@ class TextTokenizer:
         result = self.tokenize(text)
         return self.detokenize(result.tokens) == text
 
-    def token_lengths(self, tokens: Sequence[str]) -> List[int]:
+    def token_lengths(self, tokens: Sequence[str]) -> list[int]:
         if not all(isinstance(token, str) for token in tokens):
             raise TypeError("all tokens must be strings")
 

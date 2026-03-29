@@ -33,7 +33,9 @@ class TextDecompressor:
 
         text = self._decode_utf8(original_bytes)
         self._validate_length(text=text, expected_length=package.original_length)
-        self._validate_sha256(data=original_bytes, expected_sha256=package.original_sha256)
+        self._validate_sha256(
+            data=original_bytes, expected_sha256=package.original_sha256
+        )
 
         return text
 
