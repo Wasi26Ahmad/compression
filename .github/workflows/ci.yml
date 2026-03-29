@@ -60,6 +60,3 @@ jobs:
 
       - name: Run Black
         run: black --check .
-        env:
-          PYTHONPATH: .
-        run: mypy src
