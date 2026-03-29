@@ -55,8 +55,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Ruff
+      - name: Run Ruff (lint)
         run: ruff check .
 
-      - name: Run Black
-        run: black --check .
+      - name: Run Ruff (format check)
+        run: ruff format --check .
