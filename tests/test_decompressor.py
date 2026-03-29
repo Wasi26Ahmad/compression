@@ -13,7 +13,7 @@ def test_decompress_round_trip_with_zlib() -> None:
     compressor = TextCompressor(method="zlib")
     decompressor = TextDecompressor()
 
-    text = "You are a helpful assistant.\nYou are a helpful assistant."
+    text = "You are a very helpful assistant.\nYou are a very helpful assistant."
     package = compressor.compress(text)
     restored = decompressor.decompress(package)
 
