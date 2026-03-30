@@ -1,0 +1,14 @@
+# Task
+- Summarize the document
+- Preserve all numbers
+- Keep section names unchanged
+
+## Constraints
+1. No hallucination
+2. No omission
+3. Maintain factual consistency
+
+## Output Format
+- Bullet points
+- Clear structure
+- Exact values retained

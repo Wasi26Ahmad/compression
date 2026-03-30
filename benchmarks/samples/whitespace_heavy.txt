@@ -1,0 +1,8 @@
+Prompt:
+    - item one
+    - item two
+    - item three
+
+Response:        Keep formatting exact.
+
+        Indented block should remain untouched.

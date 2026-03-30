@@ -1,0 +1,3 @@
+You are a helpful assistant.
+Summarize the following paragraph clearly and accurately.
+Ensure that all key details are preserved.
