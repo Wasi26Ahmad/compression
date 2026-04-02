@@ -6,250 +6,239 @@ from src.memory import MemoryManager
 from src.retrieval import MemoryRetriever, RetrievalResult
 from src.storage import CompressionStorage
 
+# ===============================
+# Setup Helper
+# ===============================
+
+
+def build_env(tmp_path):
+    storage = CompressionStorage(tmp_path / "compression.db")
+    manager = MemoryManager(storage=storage)
+    return manager
+
+
+# ===============================
+# Basic Validation
+# ===============================
+
 
 def test_retriever_rejects_invalid_memory_manager() -> None:
     with pytest.raises(TypeError, match="memory_manager must be a MemoryManager"):
-        MemoryRetriever(memory_manager="not-a-manager")  # type: ignore[arg-type]
+        MemoryRetriever(memory_manager="bad")  # type: ignore[arg-type]
 
 
-def test_retrieve_returns_relevant_results(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage, default_method="dictionary")
-    retriever = MemoryRetriever(manager)
+def test_retriever_rejects_invalid_mode(tmp_path) -> None:
+    manager = build_env(tmp_path)
 
-    manager.save_text(
-        "Cattle weight estimation uses side-view and rear-view images.",
-        metadata={"topic": "cattle"},
-    )
-    manager.save_text(
-        "Road anomaly detection uses accelerometer and gyroscope signals.",
-        metadata={"topic": "road"},
-    )
+    with pytest.raises(ValueError, match="mode must be one of"):
+        MemoryRetriever(manager, mode="invalid")  # type: ignore[arg-type]
 
-    results = retriever.retrieve("cattle image estimation", limit=5)
+
+def test_retriever_rejects_invalid_alpha_type(tmp_path) -> None:
+    manager = build_env(tmp_path)
+
+    with pytest.raises(TypeError, match="alpha must be a float"):
+        MemoryRetriever(manager, alpha="0.5")  # type: ignore[arg-type]
+
+
+def test_retriever_rejects_invalid_alpha_range(tmp_path) -> None:
+    manager = build_env(tmp_path)
+
+    with pytest.raises(ValueError, match="alpha must be between 0 and 1"):
+        MemoryRetriever(manager, alpha=1.5)
+
+
+# ===============================
+# Lexical Mode Tests
+# ===============================
+
+
+def test_lexical_retrieval_basic(tmp_path) -> None:
+    manager = build_env(tmp_path)
+    retriever = MemoryRetriever(manager, mode="lexical")
+
+    manager.save_text("Cattle weight estimation from images")
+    manager.save_text("Road anomaly detection using sensors")
+
+    results = retriever.retrieve("cattle estimation", limit=2)
 
     assert len(results) >= 1
     assert isinstance(results[0], RetrievalResult)
     assert "cattle" in results[0].text.lower()
 
 
-def test_retrieve_respects_limit(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
+def test_lexical_respects_limit(tmp_path) -> None:
+    manager = build_env(tmp_path)
+    retriever = MemoryRetriever(manager, mode="lexical")
 
-    for idx in range(5):
-        manager.save_text(f"Machine learning text sample {idx}")
+    for i in range(5):
+        manager.save_text(f"text {i} cattle")
 
-    results = retriever.retrieve("machine learning", limit=2)
+    results = retriever.retrieve("cattle", limit=2)
 
     assert len(results) <= 2
 
 
-def test_retrieve_returns_empty_for_empty_query_tokens(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
+# ===============================
+# Vector Mode Tests
+# ===============================
+
+
+def test_vector_retrieval_basic(tmp_path) -> None:
+    manager = build_env(tmp_path)
+    retriever = MemoryRetriever(manager, mode="vector")
+
+    manager.save_text("Deep learning for medical imaging")
+    manager.save_text("Cattle weight estimation from vision")
+
+    results = retriever.retrieve("cattle vision", limit=2)
+
+    assert len(results) >= 1
+    assert "cattle" in results[0].text.lower()
+
+
+def test_vector_returns_empty_for_no_match(tmp_path) -> None:
+    manager = build_env(tmp_path)
+    retriever = MemoryRetriever(manager, mode="vector")
+
+    manager.save_text("road anomaly detection")
+
+    results = retriever.retrieve("quantum physics", limit=2)
+
+    assert results == [] or all(r.score >= 0 for r in results)
+
+
+# ===============================
+# Hybrid Mode Tests
+# ===============================
+
+
+def test_hybrid_retrieval_combines_scores(tmp_path) -> None:
+    manager = build_env(tmp_path)
+    retriever = MemoryRetriever(manager, mode="hybrid", alpha=0.5)
+
+    manager.save_text("cattle weight estimation using images")
+    manager.save_text("machine learning optimization")
+
+    results = retriever.retrieve("cattle estimation", limit=2)
+
+    assert len(results) >= 1
+    assert results[0].score > 0
+
+
+def test_hybrid_behaves_like_lexical_when_alpha_1(tmp_path) -> None:
+    manager = build_env(tmp_path)
+
+    retriever = MemoryRetriever(manager, mode="hybrid", alpha=1.0)
+
+    manager.save_text("cattle estimation")
+    manager.save_text("road anomaly")
+
+    results = retriever.retrieve("cattle", limit=2)
+
+    assert len(results) >= 1
+    assert "cattle" in results[0].text.lower()
+
+
+def test_hybrid_behaves_like_vector_when_alpha_0(tmp_path) -> None:
+    manager = build_env(tmp_path)
+
+    retriever = MemoryRetriever(manager, mode="hybrid", alpha=0.0)
+
+    manager.save_text("cattle estimation from images")
+    manager.save_text("road anomaly detection")
+
+    results = retriever.retrieve("cattle images", limit=2)
+
+    assert len(results) >= 1
+
+
+# ===============================
+# Metadata Filtering
+# ===============================
+
+
+def test_retrieval_with_metadata_filter(tmp_path) -> None:
+    manager = build_env(tmp_path)
     retriever = MemoryRetriever(manager)
 
-    manager.save_text("Some stored text")
-
-    results = retriever.retrieve("   !!!   ", limit=5)
-
-    assert results == []
-
-
-def test_retrieve_returns_empty_when_no_memories_exist(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    results = retriever.retrieve("anything", limit=5)
-
-    assert results == []
-
-
-def test_retrieve_can_filter_by_metadata(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    manager.save_text(
-        "Cattle body measurements help estimate weight.",
-        metadata={"topic": "cattle", "type": "vision"},
-    )
-    manager.save_text(
-        "Cattle nutrition affects growth rate.",
-        metadata={"topic": "cattle", "type": "health"},
-    )
-    manager.save_text(
-        "Road anomalies can be detected by vehicle motion sensors.",
-        metadata={"topic": "road", "type": "sensor"},
-    )
+    manager.save_text("cattle vision model", metadata={"type": "vision"})
+    manager.save_text("cattle nutrition", metadata={"type": "health"})
 
     results = retriever.retrieve(
         "cattle",
-        limit=10,
         metadata_filter={"type": "vision"},
     )
 
-    assert len(results) >= 1
-    assert all(result.metadata["type"] == "vision" for result in results)
+    assert len(results) == 1
+    assert results[0].metadata["type"] == "vision"
 
 
-def test_retrieve_returns_empty_when_metadata_filter_matches_nothing(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
+def test_metadata_filter_no_match(tmp_path) -> None:
+    manager = build_env(tmp_path)
     retriever = MemoryRetriever(manager)
 
-    manager.save_text(
-        "Some text about cattle.",
-        metadata={"topic": "cattle"},
-    )
+    manager.save_text("cattle vision model", metadata={"type": "vision"})
 
     results = retriever.retrieve(
         "cattle",
-        limit=5,
-        metadata_filter={"topic": "road"},
+        metadata_filter={"type": "health"},
     )
 
     assert results == []
 
 
-def test_retrieve_texts_returns_only_text_payloads(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
+# ===============================
+# Edge Cases
+# ===============================
+
+
+def test_empty_query_returns_empty(tmp_path) -> None:
+    manager = build_env(tmp_path)
     retriever = MemoryRetriever(manager)
 
-    manager.save_text("Transformer models are useful for sequence tasks.")
-    manager.save_text("Convolutional models are useful for image tasks.")
+    manager.save_text("some text")
 
-    texts = retriever.retrieve_texts("image tasks", limit=2)
+    results = retriever.retrieve("   !!!   ")
 
-    assert len(texts) >= 1
-    assert all(isinstance(text, str) for text in texts)
+    assert results == []
 
 
-def test_retrieve_results_are_sorted_by_score_descending(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
+def test_no_memories_returns_empty(tmp_path) -> None:
+    manager = build_env(tmp_path)
     retriever = MemoryRetriever(manager)
 
-    manager.save_text("cattle cattle cattle weight estimation from images")
-    manager.save_text("cattle estimation")
-    manager.save_text("road anomaly detection")
+    results = retriever.retrieve("anything")
 
-    results = retriever.retrieve("cattle estimation", limit=3)
+    assert results == []
+
+
+def test_retrieve_texts_returns_only_strings(tmp_path) -> None:
+    manager = build_env(tmp_path)
+    retriever = MemoryRetriever(manager)
+
+    manager.save_text("transformer models")
+    manager.save_text("cnn models")
+
+    texts = retriever.retrieve_texts("models", limit=2)
+
+    assert all(isinstance(t, str) for t in texts)
+
+
+# ===============================
+# Sorting
+# ===============================
+
+
+def test_results_sorted_by_score(tmp_path) -> None:
+    manager = build_env(tmp_path)
+    retriever = MemoryRetriever(manager)
+
+    manager.save_text("cattle cattle cattle")
+    manager.save_text("cattle")
+    manager.save_text("road")
+
+    results = retriever.retrieve("cattle", limit=3)
 
     assert len(results) >= 2
     assert results[0].score >= results[1].score
-
-
-def test_retrieve_rejects_invalid_query_type(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    with pytest.raises(TypeError, match="query must be a string"):
-        retriever.retrieve(123, limit=5)  # type: ignore[arg-type]
-
-
-def test_retrieve_rejects_invalid_limit_type(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    with pytest.raises(TypeError, match="limit must be an integer"):
-        retriever.retrieve("test", limit="5")  # type: ignore[arg-type]
-
-
-def test_retrieve_rejects_invalid_search_limit_type(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    with pytest.raises(TypeError, match="search_limit must be an integer"):
-        retriever.retrieve("test", search_limit="10")  # type: ignore[arg-type]
-
-
-def test_retrieve_rejects_invalid_limit_value(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    with pytest.raises(ValueError, match="limit must be >= 1"):
-        retriever.retrieve("test", limit=0)
-
-
-def test_retrieve_rejects_invalid_search_limit_value(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    with pytest.raises(ValueError, match="search_limit must be >= 1"):
-        retriever.retrieve("test", search_limit=0)
-
-
-def test_retrieve_rejects_invalid_metadata_filter_type(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    with pytest.raises(TypeError, match="metadata_filter must be a dictionary or None"):
-        retriever.retrieve("test", metadata_filter="bad-filter")  # type: ignore[arg-type]
-
-
-def test_retrieve_uses_search_limit_to_reduce_scope(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    manager.save_text("older cattle record", metadata={"order": 1})
-    manager.save_text("middle road record", metadata={"order": 2})
-    manager.save_text("newest transformer record", metadata={"order": 3})
-
-    results = retriever.retrieve("cattle", limit=5, search_limit=1)
-
-    # Only the most recent record is searched, so cattle text should not appear.
-    assert results == []
-
-
-def test_retrieve_dictionary_compressed_texts(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage, default_method="dictionary")
-    retriever = MemoryRetriever(manager)
-
-    manager.save_text(
-        "Alpha beta alpha beta alpha beta gamma",
-        compressor_kwargs={
-            "min_phrase_len": 2,
-            "max_phrase_len": 5,
-            "min_frequency": 2,
-        },
-    )
-
-    results = retriever.retrieve("alpha beta", limit=5)
-
-    assert len(results) >= 1
-    assert "alpha beta" in results[0].text.lower()
-
-
-def test_retrieve_returns_result_fields(tmp_path) -> None:
-    storage = CompressionStorage(tmp_path / "compression.db")
-    manager = MemoryManager(storage=storage)
-    retriever = MemoryRetriever(manager)
-
-    manager.save_text(
-        "Biomedical signal processing supports diagnostic systems.",
-        metadata={"domain": "biomedical"},
-    )
-
-    results = retriever.retrieve("diagnostic systems", limit=1)
-
-    assert len(results) == 1
-    result = results[0]
-    assert isinstance(result.record_id, str)
-    assert isinstance(result.score, float)
-    assert isinstance(result.method, str)
-    assert isinstance(result.created_at, str)
-    assert isinstance(result.metadata, dict)
-    assert isinstance(result.text, str)

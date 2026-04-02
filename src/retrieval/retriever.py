@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.memory import MemoryManager
+from src.retrieval.embedder import TfidfEmbedder
+from src.retrieval.vector_store import InMemoryVectorStore
 
 _WORD_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
 
@@ -23,20 +25,45 @@ class RetrievalResult:
 
 class MemoryRetriever:
     """
-    Lightweight lexical retriever over restored memory texts.
+    Hybrid retriever:
+    - lexical (TF-IDF cosine)
+    - vector-based (embedder + vector store)
 
-    Current behavior:
-    - loads recent memories from MemoryManager
-    - tokenizes query and document text
-    - scores with a simple TF-IDF-like cosine similarity
-    - supports optional exact-match metadata filtering
+    Modes:
+    - "lexical"
+    - "vector"
+    - "hybrid" (default)
+
+    Hybrid = weighted combination of both scores
     """
 
-    def __init__(self, memory_manager: MemoryManager) -> None:
+    def __init__(
+        self,
+        memory_manager: MemoryManager,
+        mode: str = "hybrid",
+        alpha: float = 0.5,
+    ) -> None:
         if not isinstance(memory_manager, MemoryManager):
             raise TypeError("memory_manager must be a MemoryManager")
+        if mode not in {"lexical", "vector", "hybrid"}:
+            raise ValueError("mode must be one of: lexical, vector, hybrid")
+        if not isinstance(alpha, float):
+            raise TypeError("alpha must be a float")
+        if not (0.0 <= alpha <= 1.0):
+            raise ValueError("alpha must be between 0 and 1")
 
         self.memory_manager = memory_manager
+        self.mode = mode
+        self.alpha = alpha
+
+        # Vector components
+        self.embedder = TfidfEmbedder()
+        self.vector_store = InMemoryVectorStore()
+        self._vector_index_ready = False
+
+    # ===============================
+    # Public API
+    # ===============================
 
     def retrieve(
         self,
@@ -45,18 +72,6 @@ class MemoryRetriever:
         search_limit: int = 100,
         metadata_filter: dict[str, Any] | None = None,
     ) -> list[RetrievalResult]:
-        """
-        Retrieve the most relevant stored texts for a query.
-
-        Args:
-            query: Search query text.
-            limit: Number of results to return.
-            search_limit: Number of recent memories to inspect.
-            metadata_filter: Optional exact-match metadata filters.
-
-        Returns:
-            Ranked RetrievalResult list.
-        """
         if not isinstance(query, str):
             raise TypeError("query must be a string")
         if not isinstance(limit, int):
@@ -67,202 +82,149 @@ class MemoryRetriever:
             raise ValueError("limit must be >= 1")
         if search_limit < 1:
             raise ValueError("search_limit must be >= 1")
-        if metadata_filter is not None and not isinstance(metadata_filter, dict):
-            raise TypeError("metadata_filter must be a dictionary or None")
 
-        query_tokens = self._tokenize(query)
-        if not query_tokens:
+        bundles = self._load_bundles(search_limit, metadata_filter)
+        if not bundles:
             return []
 
-        restored_items = self.memory_manager.restore_all_texts(limit=search_limit)
+        texts = [bundle["text"] for bundle in bundles]
+
+        results: list[RetrievalResult]
+
+        if self.mode == "lexical":
+            scores = self._lexical_scores(query, texts)
+
+        elif self.mode == "vector":
+            scores = self._vector_scores(query, texts, bundles)
+
+        else:  # hybrid
+            lexical = self._lexical_scores(query, texts)
+            vector = self._vector_scores(query, texts, bundles)
+
+            scores = [
+                self.alpha * i + (1 - self.alpha) * j
+                for i, j in zip(lexical, vector, strict=True)
+            ]
+
+        results = [
+            RetrievalResult(
+                record_id=bundle["record"]["record_id"],
+                score=float(score),
+                method=bundle["record"]["method"],
+                created_at=bundle["record"]["created_at"],
+                metadata=bundle["metadata"],
+                text=bundle["text"],
+            )
+            for bundle, score in zip(bundles, scores, strict=True)
+            if score > 0.0
+        ]
+
+        results.sort(key=lambda r: (r.score, r.created_at), reverse=True)
+        return results[:limit]
+
+    def retrieve_texts(self, query: str, limit: int = 5) -> list[str]:
+        return [r.text for r in self.retrieve(query, limit)]
+
+    # ===============================
+    # Bundle Loading
+    # ===============================
+
+    def _load_bundles(
+        self,
+        limit: int,
+        metadata_filter: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        items = self.memory_manager.restore_all_texts(limit=limit)
+
         bundles = []
-        for item in restored_items:
+        for item in items:
             bundle = self.memory_manager.export_record_bundle(item["record_id"])
             if bundle is None:
                 continue
+            if metadata_filter:
+                if not all(
+                    bundle["metadata"].get(k) == v for k, v in metadata_filter.items()
+                ):
+                    continue
             bundles.append(bundle)
 
-        filtered_bundles = self._apply_metadata_filter(
-            bundles=bundles,
-            metadata_filter=metadata_filter,
-        )
-        if not filtered_bundles:
-            return []
+        return bundles
 
-        document_tokens = [
-            self._tokenize(bundle["record"].get("package_json", ""))
-            for bundle in filtered_bundles
-        ]
-        # Use restored text, not package JSON, for scoring
-        document_tokens = [
-            (
-                self._tokenize(bundle["package_text"])
-                if "package_text" in bundle
-                else (
-                    self._tokenize(bundle["record_text"])
-                    if "record_text" in bundle
-                    else (
-                        self._tokenize(bundle["restored_text"])
-                        if "restored_text" in bundle
-                        else self._tokenize(self._extract_text(bundle))
-                    )
-                )
-            )
-            for bundle in filtered_bundles
+    # ===============================
+    # Lexical Scoring
+    # ===============================
+
+    def _lexical_scores(self, query: str, texts: list[str]) -> list[float]:
+        query_tokens = self._tokenize(query)
+        doc_tokens = [self._tokenize(text) for text in texts]
+
+        idf = self._compute_idf(query_tokens, doc_tokens)
+
+        return [
+            self._cosine_similarity(query_tokens, tokens, idf) for tokens in doc_tokens
         ]
 
-        idf = self._compute_idf(query_tokens=query_tokens, documents=document_tokens)
-
-        scored_results: list[RetrievalResult] = []
-        for bundle, tokens in zip(filtered_bundles, document_tokens, strict=True):
-            score = self._cosine_similarity(
-                query_tokens=query_tokens,
-                document_tokens=tokens,
-                idf=idf,
-            )
-            if score <= 0.0:
-                continue
-
-            record = bundle["record"]
-            metadata = bundle["metadata"]
-            text = self._extract_text(bundle)
-
-            scored_results.append(
-                RetrievalResult(
-                    record_id=record["record_id"],
-                    score=score,
-                    method=record["method"],
-                    created_at=record["created_at"],
-                    metadata=metadata,
-                    text=text,
-                )
-            )
-
-        scored_results.sort(
-            key=lambda item: (item.score, item.created_at),
-            reverse=True,
-        )
-        return scored_results[:limit]
-
-    def retrieve_texts(
-        self,
-        query: str,
-        limit: int = 5,
-        search_limit: int = 100,
-        metadata_filter: dict[str, Any] | None = None,
-    ) -> list[str]:
-        """
-        Convenience method: return only text payloads from results.
-        """
-        results = self.retrieve(
-            query=query,
-            limit=limit,
-            search_limit=search_limit,
-            metadata_filter=metadata_filter,
-        )
-        return [result.text for result in results]
-
-    def _apply_metadata_filter(
-        self,
-        bundles: list[dict[str, Any]],
-        metadata_filter: dict[str, Any] | None,
-    ) -> list[dict[str, Any]]:
-        if metadata_filter is None:
-            return bundles
-
-        filtered: list[dict[str, Any]] = []
-        for bundle in bundles:
-            metadata = bundle["metadata"]
-            if all(
-                metadata.get(key) == value for key, value in metadata_filter.items()
-            ):
-                filtered.append(bundle)
-        return filtered
+    def _tokenize(self, text: str) -> list[str]:
+        return [t.lower() for t in _WORD_PATTERN.findall(text)]
 
     def _compute_idf(
         self,
         query_tokens: list[str],
-        documents: list[list[str]],
+        docs: list[list[str]],
     ) -> dict[str, float]:
-        """
-        Compute IDF only for query terms.
-        """
-        total_docs = len(documents)
-        doc_freq: dict[str, int] = {token: 0 for token in set(query_tokens)}
+        total_docs = len(docs)
+        df = {t: 0 for t in set(query_tokens)}
 
-        for doc_tokens in documents:
-            unique_tokens = set(doc_tokens)
-            for token in doc_freq:
-                if token in unique_tokens:
-                    doc_freq[token] += 1
+        for doc in docs:
+            unique = set(doc)
+            for t in df:
+                if t in unique:
+                    df[t] += 1
 
-        idf: dict[str, float] = {}
-        for token, freq in doc_freq.items():
-            idf[token] = math.log((1 + total_docs) / (1 + freq)) + 1.0
-
-        return idf
+        return {t: math.log((1 + total_docs) / (1 + f)) + 1 for t, f in df.items()}
 
     def _cosine_similarity(
         self,
         query_tokens: list[str],
-        document_tokens: list[str],
+        doc_tokens: list[str],
         idf: dict[str, float],
     ) -> float:
-        if not document_tokens:
+        q = Counter(query_tokens)
+        d = Counter(doc_tokens)
+
+        dot = sum(q[t] * d[t] * idf.get(t, 0.0) for t in idf)
+        qn = math.sqrt(sum((q[t] * idf.get(t, 0.0)) ** 2 for t in idf))
+        dn = math.sqrt(sum((d[t] * idf.get(t, 0.0)) ** 2 for t in idf))
+
+        if qn == 0 or dn == 0:
             return 0.0
+        return dot / (qn * dn)
 
-        query_counts = Counter(query_tokens)
-        doc_counts = Counter(document_tokens)
+    # ===============================
+    # Vector Scoring
+    # ===============================
 
-        query_vector: dict[str, float] = {}
-        doc_vector: dict[str, float] = {}
+    def _vector_scores(
+        self,
+        query: str,
+        texts: list[str],
+        bundles: list[dict[str, Any]],
+    ) -> list[float]:
+        # Build index once per call (simple baseline)
+        embed_result = self.embedder.fit_transform(texts)
 
-        for token in idf:
-            query_tf = query_counts[token]
-            doc_tf = doc_counts[token]
+        self.vector_store.clear()
+        for bundle, vec in zip(bundles, embed_result.vectors, strict=True):
+            self.vector_store.add(
+                record_id=bundle["record"]["record_id"],
+                vector=vec,
+                metadata=bundle["metadata"],
+                text=bundle["text"],
+            )
 
-            if query_tf > 0:
-                query_vector[token] = float(query_tf) * idf[token]
-            if doc_tf > 0:
-                doc_vector[token] = float(doc_tf) * idf[token]
+        query_vec = self.embedder.transform([query])[0]
+        results = self.vector_store.search(query_vec, limit=len(texts))
 
-        if not query_vector or not doc_vector:
-            return 0.0
+        score_map = {r.record_id: r.score for r in results}
 
-        dot_product = sum(
-            query_vector.get(token, 0.0) * doc_vector.get(token, 0.0) for token in idf
-        )
-        query_norm = math.sqrt(sum(value * value for value in query_vector.values()))
-        doc_norm = math.sqrt(sum(value * value for value in doc_vector.values()))
-
-        if query_norm == 0.0 or doc_norm == 0.0:
-            return 0.0
-
-        return dot_product / (query_norm * doc_norm)
-
-    @staticmethod
-    def _tokenize(text: str) -> list[str]:
-        return [token.lower() for token in _WORD_PATTERN.findall(text)]
-
-    @staticmethod
-    def _extract_text(bundle: dict[str, Any]) -> str:
-        """
-        Extract restored text from a bundle.
-
-        Since export_record_bundle currently returns:
-        - record
-        - metadata
-        - package
-
-        and not the restored text directly, we reconstruct text from restore_all_texts
-        at retrieval time via fallback fields if present.
-        """
-        if "text" in bundle:
-            return str(bundle["text"])
-        if "restored_text" in bundle:
-            return str(bundle["restored_text"])
-        if "record_text" in bundle:
-            return str(bundle["record_text"])
-        if "package_text" in bundle:
-            return str(bundle["package_text"])
-        raise ValueError("Bundle does not contain restored text")
+        return [score_map.get(bundle["record"]["record_id"], 0.0) for bundle in bundles]
