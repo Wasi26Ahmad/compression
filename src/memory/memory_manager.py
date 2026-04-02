@@ -127,6 +127,8 @@ class MemoryManager:
         - stored record fields
         - decoded metadata JSON
         - reconstructed compression package as dict
+        - restored original text
+
         """
         record = self.storage.get_record(record_id)
         if record is None:
@@ -139,10 +141,13 @@ class MemoryManager:
         except json.JSONDecodeError as exc:
             raise ValueError("Stored metadata_json is invalid JSON") from exc
 
+        text = self.decompressor.decompress(package)
+
         return {
             "record": record.to_dict(),
             "metadata": metadata,
             "package": package.to_dict(),
+            "text": text,
         }
 
     def restore_all_texts(self, limit: int = 100) -> list[dict[str, Any]]:
