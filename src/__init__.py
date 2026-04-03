@@ -1,7 +1,7 @@
-from ccllm.compression import TextCompressor, TextDecompressor
-from ccllm.storage import CompressionStorage
-from ccllm.memory import MemoryManager
-from ccllm.retrieval import MemoryRetriever
+from src.ccllm.compression import TextCompressor, TextDecompressor
+from src.ccllm.storage import CompressionStorage
+from src.ccllm.memory import MemoryManager
+from src.ccllm.retrieval import MemoryRetriever
 
 __all__ = [
     "TextCompressor",
