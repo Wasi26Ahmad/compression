@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccllm"
-version = "0.1.0"
+version = "0.1.2"
 description = "Lossless text compression, storage, memory management, and retrieval toolkit"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,8 +25,8 @@ classifiers = [
 dependencies = [
   "fastapi>=0.110,<1.0",
   "pydantic>=2.7,<3.0",
-  "numpy>=1.26,<2.0",
-  "scikit-learn>=1.4,<2.0",
+  "numpy>=2.3,<3.0",
+  "scikit-learn>=1.7,<2.0",
   "uvicorn>=0.29,<1.0"
 ]
 
@@ -44,8 +44,3 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[project.urls]
-Homepage = "https://github.com/<your-user-or-org>/<repo>"
-Repository = "https://github.com/<your-user-or-org>/<repo>"
-Issues = "https://github.com/<your-user-or-org>/<repo>/issues"
