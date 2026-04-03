@@ -1,3 +1,5 @@
+__version__ = "0.1.3"
+
 from src.ccllm.compression import TextCompressor, TextDecompressor
 from src.ccllm.storage import CompressionStorage
 from src.ccllm.memory import MemoryManager
