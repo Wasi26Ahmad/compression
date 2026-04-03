@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from src.memory import MemoryManager
-from src.retrieval import MemoryRetriever
-from src.storage import CompressionStorage
+from src.ccllm.memory import MemoryManager
+from src.ccllm.retrieval import MemoryRetriever
+from src.ccllm.storage import CompressionStorage
 
 # ===============================
 # Full Pipeline Test (All Modes)

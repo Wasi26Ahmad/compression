@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.compression import CompressionPackage, TextCompressor, TextDecompressor
+from src.ccllm.compression import CompressionPackage, TextCompressor, TextDecompressor
 
 
 @pytest.mark.parametrize("method", ["none", "zlib", "lzma", "dictionary"])

@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from src.retrieval.embedder import TfidfEmbedder
+from src.ccllm.retrieval.embedder import TfidfEmbedder
 
 
 @dataclass(frozen=True)

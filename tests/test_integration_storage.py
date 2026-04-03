@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from src.compression import TextCompressor, TextDecompressor
-from src.storage import CompressionStorage
+from src.ccllm.compression import TextCompressor, TextDecompressor
+from src.ccllm.storage import CompressionStorage
 
 
 @pytest.mark.parametrize("method", ["zlib", "dictionary"])

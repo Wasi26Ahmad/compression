@@ -1,6 +1,6 @@
-from src.retrieval.embedder import EmbeddingResult, TfidfEmbedder
-from src.retrieval.retriever import MemoryRetriever, RetrievalResult
-from src.retrieval.vector_store import (
+from src.ccllm.retrieval.embedder import EmbeddingResult, TfidfEmbedder
+from src.ccllm.retrieval.retriever import MemoryRetriever, RetrievalResult
+from src.ccllm.retrieval.vector_store import (
     InMemoryVectorStore,
     VectorRecord,
     VectorSearchResult,

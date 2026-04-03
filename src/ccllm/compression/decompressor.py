@@ -8,7 +8,7 @@ import lzma
 import zlib
 from typing import Any
 
-from src.compression.compressor import CompressionPackage
+from src.ccllm.compression.compressor import CompressionPackage
 
 
 class TextDecompressor:

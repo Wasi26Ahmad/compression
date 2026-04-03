@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from src.compression import CompressionPackage, TextCompressor
-from src.storage import CompressionStorage, StoredCompressionRecord
+from src.ccllm.compression import CompressionPackage, TextCompressor
+from src.ccllm.storage import CompressionStorage, StoredCompressionRecord
 
 
 def test_storage_initializes_database_file(tmp_path) -> None:

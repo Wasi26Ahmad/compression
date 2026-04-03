@@ -6,9 +6,9 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from src.memory import MemoryManager
-from src.retrieval.embedder import TfidfEmbedder
-from src.retrieval.vector_store import InMemoryVectorStore
+from src.ccllm.memory import MemoryManager
+from src.ccllm.retrieval.embedder import TfidfEmbedder
+from src.ccllm.retrieval.vector_store import InMemoryVectorStore
 
 _WORD_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
 

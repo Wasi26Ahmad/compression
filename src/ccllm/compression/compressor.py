@@ -8,8 +8,8 @@ import zlib
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
-from src.compression.dictionary import DictionaryEntry, PhraseDictionaryBuilder
-from src.compression.tokenizer import TextTokenizer
+from src.ccllm.compression.dictionary import DictionaryEntry, PhraseDictionaryBuilder
+from src.ccllm.compression.tokenizer import TextTokenizer
 
 CompressionMethod = Literal["none", "zlib", "lzma", "dictionary"]
 

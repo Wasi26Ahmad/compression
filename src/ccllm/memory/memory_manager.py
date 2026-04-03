@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from src.compression import CompressionPackage, TextCompressor, TextDecompressor
-from src.storage import CompressionStorage, StoredCompressionRecord
+from src.ccllm.compression import CompressionPackage, TextCompressor, TextDecompressor
+from src.ccllm.storage import CompressionStorage, StoredCompressionRecord
 
 
 class MemoryManager:

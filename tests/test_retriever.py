@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from src.memory import MemoryManager
-from src.retrieval import MemoryRetriever, RetrievalResult
-from src.storage import CompressionStorage
+from src.ccllm.memory import MemoryManager
+from src.ccllm.retrieval import MemoryRetriever, RetrievalResult
+from src.ccllm.storage import CompressionStorage
 
 # ===============================
 # Setup Helper

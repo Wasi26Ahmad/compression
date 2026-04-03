@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.compression.tokenizer import TextTokenizer, TokenizationResult
+from src.ccllm.compression import TextTokenizer, TokenizationResult
 
 
 def test_tokenize_returns_tokenization_result() -> None:

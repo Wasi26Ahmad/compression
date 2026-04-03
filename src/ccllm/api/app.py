@@ -5,9 +5,9 @@ from typing import Any, Literal
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from src.memory import MemoryManager
-from src.retrieval import MemoryRetriever
-from src.storage import CompressionStorage
+from src.ccllm.memory import MemoryManager
+from src.ccllm.retrieval import MemoryRetriever
+from src.ccllm.storage import CompressionStorage
 
 # -----------------------------
 # App setup

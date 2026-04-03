@@ -1,15 +1,15 @@
-from src.compression.compressor import (
+from src.ccllm.compression.compressor import (
     CompressionMethod,
     CompressionPackage,
     CompressionStats,
     TextCompressor,
 )
-from src.compression.decompressor import TextDecompressor
-from src.compression.dictionary import (
+from src.ccllm.compression.decompressor import TextDecompressor
+from src.ccllm.compression.dictionary import (
     DictionaryEntry,
     PhraseDictionaryBuilder,
 )
-from src.compression.tokenizer import (
+from src.ccllm.compression.tokenizer import (
     TextTokenizer,
     TokenizationResult,
 )

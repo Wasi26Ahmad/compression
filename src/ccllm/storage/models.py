@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from src.compression import CompressionPackage
+from src.ccllm.compression import CompressionPackage
 
 
 @dataclass(frozen=True)

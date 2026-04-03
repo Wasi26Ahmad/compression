@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from src.compression.compressor import (
+from src.ccllm.compression import (
     CompressionPackage,
     CompressionStats,
     TextCompressor,

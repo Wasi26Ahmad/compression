@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.retrieval import InMemoryVectorStore, VectorRecord, VectorSearchResult
+from src.ccllm.retrieval import InMemoryVectorStore, VectorRecord, VectorSearchResult
 
 
 def test_add_single_vector_record() -> None:

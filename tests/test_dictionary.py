@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.compression.dictionary import DictionaryEntry, PhraseDictionaryBuilder
+from src.ccllm.compression.dictionary import DictionaryEntry, PhraseDictionaryBuilder
 
 
 def test_build_returns_dictionary_entries() -> None:

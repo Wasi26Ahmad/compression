@@ -5,12 +5,12 @@ import json
 
 import pytest
 
-from src.compression.compressor import (
+from src.ccllm.compression import (
     CompressionPackage,
     CompressionStats,
     TextCompressor,
 )
-from src.compression.decompressor import TextDecompressor
+from src.ccllm.compression import TextDecompressor
 
 
 def test_decompress_round_trip_with_zlib() -> None:

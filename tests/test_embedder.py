@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.retrieval.embedder import EmbeddingResult, TfidfEmbedder
+from src.ccllm.retrieval.embedder import EmbeddingResult, TfidfEmbedder
 
 
 def test_embedder_fit_transform_returns_embedding_result() -> None:

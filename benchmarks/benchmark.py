@@ -12,7 +12,7 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from src.compression import TextCompressor, TextDecompressor
+from src.ccllm.compression import TextCompressor, TextDecompressor
 
 
 @dataclass(frozen=True)

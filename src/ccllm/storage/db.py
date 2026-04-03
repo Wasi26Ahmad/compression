@@ -6,8 +6,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from src.compression import CompressionPackage
-from src.storage.models import StorageCreateRequest, StoredCompressionRecord
+from src.ccllm.compression import CompressionPackage
+from src.ccllm.storage.models import StorageCreateRequest, StoredCompressionRecord
 
 
 class CompressionStorage:

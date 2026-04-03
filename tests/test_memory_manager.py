@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from src.compression import CompressionPackage
-from src.memory import MemoryManager
-from src.storage import CompressionStorage, StoredCompressionRecord
+from src.ccllm.compression import CompressionPackage
+from src.ccllm.memory import MemoryManager
+from src.ccllm.storage import CompressionStorage, StoredCompressionRecord
 
 
 def test_memory_manager_rejects_invalid_storage() -> None:
